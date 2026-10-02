@@ -59,7 +59,7 @@ export function Evidence({
       onFocus={(e) => setRegion(region, e.currentTarget)}
       onBlur={() => setRegion(null)}
       className={cn(
-        "rounded-[3px] outline-none ring-offset-1 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-accent-sig/40",
+        "rounded-[3px] outline-none ring-offset-1 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-brand-vivid/40",
         "hover:decoration-accent-sig/40",
         active === region && "bg-panel", // source-side hover lights the field
         className,
@@ -71,25 +71,27 @@ export function Evidence({
 }
 
 /**
- * A calm confidence indicator — green for a clean match, amber where the AI
- * genuinely hesitated. The tooltip carries the reason.
+ * A calm status indicator on the ONE app-wide vocabulary:
+ * green = resolved/verified · amber = decision open. The tooltip names the
+ * state in those words and carries the reason.
  */
 export function Confidence({ field, className }: { field: string; className?: string }) {
   const c = FIELD_CONFIDENCE[field]
   if (!c) return null
+  const resolved = c.level === "high"
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"
-          aria-label={`AI confidence: ${c.level === "high" ? "high" : "needs a look"}`}
-          className={cn("inline-grid place-items-center rounded-full p-[3px] align-middle outline-none focus-visible:ring-2 focus-visible:ring-accent-sig/40", className)}
+          aria-label={resolved ? "Resolved, verified against the document" : "Decision open"}
+          className={cn("inline-grid place-items-center rounded-full p-[3px] align-middle outline-none focus-visible:ring-2 focus-visible:ring-brand-vivid/40", className)}
         >
           <span className={cn("block size-[7px] rounded-full ring-2", dot(c.level))} />
         </button>
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-[240px]">
-        <div className="font-medium">{c.level === "high" ? "High confidence" : "Worth a look"}</div>
+        <div className="font-medium">{resolved ? "Resolved · verified" : "Decision open"}</div>
         <div className="mt-0.5 font-normal text-white/70">{c.basis}</div>
       </TooltipContent>
     </Tooltip>

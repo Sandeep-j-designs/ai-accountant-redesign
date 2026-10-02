@@ -2,7 +2,7 @@ import { useEffect } from "react"
 import {
   X,
   FileText,
-  Sparkles,
+  Link2,
   Check,
   Flag,
   Undo2,
@@ -15,7 +15,7 @@ import { relTime } from "@/lib/format"
 
 const ICON: Record<ActivityKind, typeof Check> = {
   extracted: FileText,
-  matched: Sparkles,
+  matched: Link2,
   decided: Check,
   flagged: Flag,
   unflagged: Undo2,

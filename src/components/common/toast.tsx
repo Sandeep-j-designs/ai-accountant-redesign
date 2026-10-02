@@ -63,7 +63,7 @@ const ICON: Record<ToastKind, { Icon: typeof Check; className: string }> = {
 function ToastRow({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => void }) {
   const { Icon, className } = ICON[toast.kind]
   return (
-    <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-line-2 bg-raised px-3.5 py-3 shadow-lift animate-in fade-in slide-in-from-bottom-2 duration-200">
+    <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-line bg-raised px-3.5 py-3 shadow-lift animate-in fade-in slide-in-from-bottom-2 duration-200">
       {/* accent lives on the icon only, never the background */}
       <Icon className={cn("size-4 flex-none", className)} strokeWidth={2.4} />
       <span className="min-w-0 flex-1 text-[12.5px] text-ink">{toast.message}</span>

@@ -14,12 +14,22 @@ const GROUPS: { heading: string; rows: { keys: string[]; label: string }[] }[] =
   {
     heading: "Verify",
     rows: [
-      { keys: ["↑", "↓"], label: "Move between decisions" },
-      { keys: ["↵"], label: "Accept the current decision" },
+      { keys: ["↑", "↓"], label: "Move between open decisions" },
+      { keys: ["↵"], label: "Accept the decision · advance the chain" },
       { keys: ["E"], label: "Override" },
       { keys: ["F"], label: "Flag for review" },
-      { keys: ["⌘", "↵"], label: "Record to Tally" },
+      { keys: ["R"], label: "Challenge a settled field (Tab to it first)" },
+      { keys: ["A"], label: "Expand / collapse additional details" },
       { keys: ["Esc"], label: "Close an open override or menu" },
+    ],
+  },
+  {
+    heading: "Post to Tally",
+    rows: [
+      { keys: ["↵"], label: "From a clean board, review the posting" },
+      { keys: ["⌘", "↵"], label: "Jump straight to the posting preview" },
+      { keys: ["↵"], label: "In the preview, post to Tally" },
+      { keys: ["Esc"], label: "In the preview, step back to the board" },
     ],
   },
 ]

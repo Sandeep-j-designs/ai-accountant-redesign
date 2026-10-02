@@ -40,7 +40,7 @@ export function MetricValue({
           <Currency value={v} size="metric" className={color} />
         ) : (
           <span
-            className={cn("block text-[28px] font-medium leading-none tabular-nums tracking-[-0.02em]", color)}
+            className={cn("block text-[28px] font-medium leading-none tabular tracking-[-0.02em]", color)}
             style={{ fontFamily: "var(--font-display)" }}
           >
             {v}

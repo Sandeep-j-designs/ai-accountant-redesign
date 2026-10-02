@@ -1,6 +1,7 @@
 import { TriangleAlert, ArrowRight } from "lucide-react"
 import { useBill, isReady, grandTotal } from "@/state/store"
 import { cn } from "@/lib/utils"
+import { primaryButtonSurface } from "@/components/ui/button"
 import { Amt } from "./kit"
 import { INVOICE, NEXT_VOUCHER, TAX_AMOUNT, TAX_HALF } from "@/data/invoice"
 
@@ -28,7 +29,7 @@ export function CommitZone({
             <div className="text-[13.5px] text-danger">
               {dup
                 ? "Voucher AP/003/25-26 already exists in this branch."
-                : "Does not reconcile — ₹2,000 unaccounted."}
+                : "Does not reconcile. ₹2,000 unaccounted."}
             </div>
             <div className="mt-0.5 text-[12px] text-muted-ink">
               {dup
@@ -39,9 +40,12 @@ export function CommitZone({
               onClick={() =>
                 dup ? dispatch({ type: "USE_VOUCHER", value: NEXT_VOUCHER }) : onShowBalance()
               }
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-[12.5px] font-medium text-primary-foreground hover:bg-primary-hover"
+              className={cn(
+                "mt-3 inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-[13px] font-semibold",
+                primaryButtonSurface,
+              )}
             >
-              {dup ? "Use next — AP/004/25-26" : "Show the gap"}
+              {dup ? `Use ${NEXT_VOUCHER} instead` : "Show the gap"}
               {!dup && <ArrowRight className="size-3.5" strokeWidth={2} />}
             </button>
           </div>
@@ -69,12 +73,12 @@ export function CommitZone({
   return (
     <div
       className={cn(
-        "rounded-xl border px-6 py-5 shadow-card transition-colors duration-200",
+        "rounded-lg border px-6 py-5 shadow-card transition-colors duration-200",
         committing ? "border-accent-sig/40 bg-accent-wash" : "border-line bg-surface",
       )}
     >
       <div className="flex items-baseline justify-between">
-        <span className="eyebrow">Enters the books — Purchase</span>
+        <span className="eyebrow">Enters the books: Purchase</span>
         <span className="code text-[11px] text-muted-ink">
           {voucher} · {INVOICE.invoiceDate}
         </span>
@@ -107,8 +111,8 @@ export function CommitZone({
         />
         <span className={cn("text-[12px]", committing ? "font-medium text-accent-sig-ink" : "text-muted-ink")}>
           {committing
-            ? `Posting ${voucher} · ${INVOICE.supplier.name} — recording to the books…`
-            : "Reviewed above — use Post to books below to record."}
+            ? `Recording ${voucher} · ${INVOICE.supplier.name} to the books…`
+            : "Reviewed above. Review & post to see the Tally voucher before it writes."}
         </span>
       </div>
     </div>
@@ -128,7 +132,7 @@ function JournalRow({
 }) {
   return (
     <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2.5 py-[5px] text-[12.5px]">
-      <span className="font-mono text-[10px] text-faint">{side}</span>
+      <span className="text-[10px] font-medium uppercase tracking-[0.04em] text-faint">{side}</span>
       <span className={cn("truncate", cr ? "text-ink" : "text-body")}>{label}</span>
       <Amt value={amount} className="text-ink" />
     </div>

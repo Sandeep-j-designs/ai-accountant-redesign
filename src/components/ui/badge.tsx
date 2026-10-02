@@ -4,10 +4,10 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
-/* Badges are quiet by default — a mono label, not a coloured pill.
-   `signal` is the only accented variant, reserved for the live state. */
+/* Badges are quiet by default — a sans uppercase label (the shared label
+   token), not a coloured pill. `signal` is the only accented variant. */
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.04em] whitespace-nowrap [&_svg]:size-3 [&_svg]:pointer-events-none",
+  "inline-flex items-center gap-1 rounded-xs px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.06em] whitespace-nowrap [&_svg]:size-3 [&_svg]:pointer-events-none",
   {
     variants: {
       variant: {

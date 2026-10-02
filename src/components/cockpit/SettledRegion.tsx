@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { Lock, Undo2, RotateCcw, Check } from "lucide-react"
+import { Lock, Undo2, Check } from "lucide-react"
 import { useBill } from "@/state/store"
 import { useReducedMotion } from "@/hooks/useReducedMotion"
 import { cn } from "@/lib/utils"
-import { Amt, DecisionCard } from "./kit"
+import { Amt, DecisionCard, Kbd } from "./kit"
 import { FactEditor } from "./FactEditor"
 import { FlagButton } from "./FlagButton"
 import { Attribution } from "./Attribution"
@@ -58,8 +58,8 @@ export function SettledRegion({ onHover }: { onHover?: (r: DocRegion | null) => 
         <div>
           <div className="mb-1.5 flex items-center gap-2 px-3">
             <span className="eyebrow text-warning">Flagged for review</span>
-            <span className="fig text-[10.5px] text-warning/80">{flaggedKeysList.length}</span>
-            <span className="ml-auto text-[10.5px] text-faint">routed — off your desk</span>
+            <span className="text-[10.5px] tabular-nums text-warning/80">{flaggedKeysList.length}</span>
+            <span className="ml-auto text-[10.5px] text-faint">routed, off your desk</span>
           </div>
           <div className="overflow-hidden rounded-lg border border-warning/30 bg-warning-bg">
             {flaggedKeysList.map((k, i) => {
@@ -109,7 +109,7 @@ export function SettledRegion({ onHover }: { onHover?: (r: DocRegion | null) => 
       <div>
       <div className="mb-1.5 flex items-center gap-2 px-3">
         <span className="eyebrow">Settled · in the books</span>
-        <span className={cn("font-mono text-[10.5px] tnum text-faint transition-colors", tick && "text-accent-sig-ink")}>
+        <span className={cn("text-[10.5px] tnum text-faint transition-colors", tick && "text-accent-sig-ink")}>
           {count}
         </span>
         {state.posted ? (
@@ -141,12 +141,20 @@ export function SettledRegion({ onHover }: { onHover?: (r: DocRegion | null) => 
           return (
             <div
               key={k}
+              tabIndex={state.posted ? undefined : 0}
+              onKeyDown={(e) => {
+                if (state.posted) return
+                if (e.key === "r" || e.key === "R") {
+                  e.preventDefault()
+                  dispatch({ type: "REOPEN", key: k })
+                }
+              }}
               onMouseEnter={() => onHover?.(FACTS[k].region)}
               onMouseLeave={() => onHover?.(null)}
               className={cn(
-                "group relative flex items-center gap-3 rounded-md py-2.5 px-3 transition-colors duration-150",
+                "group relative flex items-center gap-3 rounded-md py-2.5 px-3 outline-none transition-colors duration-150",
                 i > 0 && "border-t border-line/60",
-                !state.posted && "hover:bg-panel/60",
+                !state.posted && "hover:bg-panel/60 focus-visible:bg-panel focus-visible:ring-1 focus-visible:ring-accent-sig/30",
                 landed === k && "animate-[settle-land_0.7s_ease-out]",
               )}
             >
@@ -162,14 +170,19 @@ export function SettledRegion({ onHover }: { onHover?: (r: DocRegion | null) => 
               {state.posted ? (
                 <Lock className="size-3.5 flex-none text-faint/60" strokeWidth={1.8} />
               ) : (
-                <button
-                  onClick={() => dispatch({ type: "REOPEN", key: k })}
-                  aria-label={`Reopen ${FACTS[k].label}`}
-                  className="inline-flex flex-none items-center gap-1.5 self-start rounded-md border border-line-2 px-2 py-1 text-[11.5px] font-medium text-muted-ink transition-colors hover:border-line-strong hover:text-ink focus-visible:border-line-strong"
-                >
-                  <RotateCcw className="size-3" strokeWidth={2} />
-                  Reopen
-                </button>
+                <div className="flex flex-none items-center gap-2 self-start">
+                  <span className="hidden items-center gap-1 text-[11px] text-faint group-focus-within:flex">
+                    <Kbd>R</Kbd> to challenge
+                  </span>
+                  <button
+                    onClick={() => dispatch({ type: "REOPEN", key: k })}
+                    aria-label={`Challenge ${FACTS[k].label} — reopen to re-decide`}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-line-2 px-2 py-1 text-[11.5px] font-medium text-muted-ink transition-colors hover:border-line-strong hover:text-ink focus-visible:border-line-strong"
+                  >
+                    <Undo2 className="size-3" strokeWidth={2} />
+                    Challenge
+                  </button>
+                </div>
               )}
             </div>
           )
@@ -181,7 +194,7 @@ export function SettledRegion({ onHover }: { onHover?: (r: DocRegion | null) => 
   )
 }
 
-function factText(
+export function factText(
   key: FactKey,
   s: ReturnType<typeof useBill>["state"],
 ): { primary: ReactNode; meta: ReactNode } {
@@ -211,7 +224,7 @@ function factText(
         meta:
           s.taxMode === "IGST"
             ? "Corrected from printed CGST+SGST · inter-state (29 ≠ 27)"
-            : "Kept as printed — review at filing",
+            : "Kept as printed, review at filing",
       }
     case "loading":
       return {

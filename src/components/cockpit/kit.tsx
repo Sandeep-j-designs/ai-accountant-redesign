@@ -33,12 +33,15 @@ export function Amt({
   value,
   className,
   strike,
+  decimals,
 }: {
   value: number
   className?: string
   strike?: boolean
+  /** opt-in — ".00" renders only in the facsimile + printed→corrected table */
+  decimals?: boolean
 }) {
-  return <Currency value={value} className={className} strike={strike} />
+  return <Currency value={value} className={className} strike={strike} decimals={decimals} />
 }
 
 /** A quiet labelled row for settled / receipt blocks. */
@@ -82,7 +85,7 @@ export function DecisionCard({
           : undefined
       }
       className={cn(
-        "relative rounded-xl border bg-surface p-5 shadow-card transition-colors duration-150",
+        "relative rounded-lg border bg-surface p-5 shadow-card transition-colors duration-150",
         flashing && "flash-ring",
         focused
           ? "border-accent-sig/40 ring-1 ring-accent-sig/20"
@@ -90,9 +93,6 @@ export function DecisionCard({
         className,
       )}
     >
-      {focused && (
-        <span className="absolute left-0 top-5 h-[calc(100%-2.5rem)] w-[2px] rounded-full bg-accent-sig" />
-      )}
       {children}
     </div>
   )

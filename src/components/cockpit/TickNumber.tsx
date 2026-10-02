@@ -28,7 +28,7 @@ export function TickNumber({ value, className }: { value: number; className?: st
   }, [value, reduced])
 
   return (
-    <span className={cn("relative inline-flex justify-center tabular-nums", className)}>
+    <span className={cn("relative inline-flex justify-center tabular", className)}>
       {leaving !== null && (
         <span key={`out-${leaving}`} className="tick-out absolute inset-0 flex justify-center">
           {leaving}

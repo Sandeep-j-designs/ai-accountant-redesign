@@ -44,6 +44,30 @@ export function ReadFailDialog() {
   )
 }
 
+export function RestartDialog() {
+  const { dispatch } = useBill()
+  return (
+    <>
+      <DialogHeader>
+        <InfoTag>Start over</InfoTag>
+        <DialogTitle className="mt-2.5 text-xl">Start this bill over?</DialogTitle>
+      </DialogHeader>
+      <DialogBody>
+        <p className="text-sm leading-relaxed text-body">
+          Your decisions on this bill are cleared and you return to the Bills
+          list to begin again.
+        </p>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="outline" onClick={() => dispatch({ type: "CLOSE_DIALOG" })}>
+          Keep working
+        </Button>
+        <Button onClick={() => dispatch({ type: "RESET" })}>Start over</Button>
+      </DialogFooter>
+    </>
+  )
+}
+
 export function DiscardDialog() {
   const { dispatch } = useBill()
   return (

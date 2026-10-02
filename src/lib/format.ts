@@ -1,15 +1,20 @@
-/** Format a number as Indian-grouped rupees, e.g. 184080 → ₹1,84,080.00 */
-export function fmtINR(n: number): string {
-  const neg = n < 0
-  const abs = Math.abs(n)
-  const [intPart, decPart] = abs.toFixed(2).split(".")
+/** Indian digit grouping for an integer string: "184080" → "1,84,080". */
+export function groupIndianInt(intPart: string): string {
   let last3 = intPart.slice(-3)
   let rest = intPart.slice(0, -3)
   if (rest) {
     last3 = "," + last3
     rest = rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",")
   }
-  return `${neg ? "-" : ""}₹${rest}${last3}.${decPart}`
+  return rest + last3
+}
+
+/** Format a number as Indian-grouped rupees, e.g. 184080 → ₹1,84,080.00 */
+export function fmtINR(n: number): string {
+  const neg = n < 0
+  const abs = Math.abs(n)
+  const [intPart, decPart] = abs.toFixed(2).split(".")
+  return `${neg ? "-" : ""}₹${groupIndianInt(intPart)}.${decPart}`
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]

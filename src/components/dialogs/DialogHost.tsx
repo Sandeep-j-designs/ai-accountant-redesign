@@ -1,7 +1,8 @@
 import { useBill, type Dialog as DialogState } from "@/state/store"
 import { cn } from "@/lib/utils"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { ReadFailDialog, DiscardDialog, ManualDialog } from "./MiscDialogs"
+import { ReadFailDialog, DiscardDialog, RestartDialog, ManualDialog } from "./MiscDialogs"
+import { DeleteBillDialog } from "./BillDialogs"
 
 /**
  * Only entry-edge flows remain modal — they happen before a document is on
@@ -11,7 +12,9 @@ import { ReadFailDialog, DiscardDialog, ManualDialog } from "./MiscDialogs"
 const WIDTH: Record<string, string> = {
   readfail: "w-[440px]",
   discard: "w-[420px]",
+  restart: "w-[420px]",
   manual: "w-[480px]",
+  deleteBill: "w-[440px]",
 }
 
 function renderInner(d: DialogState) {
@@ -21,8 +24,12 @@ function renderInner(d: DialogState) {
       return <ReadFailDialog />
     case "discard":
       return <DiscardDialog />
+    case "restart":
+      return <RestartDialog />
     case "manual":
       return <ManualDialog key={d.step} step={d.step} />
+    case "deleteBill":
+      return <DeleteBillDialog billId={d.billId} />
     default:
       return null
   }

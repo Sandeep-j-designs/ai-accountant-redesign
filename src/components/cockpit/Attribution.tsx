@@ -22,7 +22,7 @@ export function Attribution({ record }: { record: DecisionRecord }) {
             <button
               type="button"
               aria-label="Reasoning"
-              className="inline-grid place-items-center rounded-full text-faint outline-none transition-colors hover:text-body focus-visible:ring-2 focus-visible:ring-accent-sig/40"
+              className="inline-grid place-items-center rounded-full text-faint outline-none transition-colors hover:text-body focus-visible:ring-2 focus-visible:ring-brand-vivid/40"
             >
               <Info className="size-3" strokeWidth={2} />
             </button>

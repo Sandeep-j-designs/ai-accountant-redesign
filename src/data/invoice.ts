@@ -30,7 +30,7 @@ export const INVOICE = {
   dueDate: "06 Jul 2026",
   placeOfSupply: "Karnataka (29)",
   lines: [
-    { key: "line1", desc: "Freight — inbound raw material", hsn: "996511", amount: 120000 },
+    { key: "line1", desc: "Freight for inbound raw material", hsn: "996511", amount: 120000 },
     { key: "line2", desc: "Loading & handling charges", hsn: "996799", amount: 36000 },
   ],
   printedTax: [
@@ -39,13 +39,14 @@ export const INVOICE = {
   ],
 } as const
 
-export const NEXT_VOUCHER = "AP/004/25-26"
-export const LAST_VOUCHER = "AP/003/25-26"
+// the register already runs AP/001–AP/006; the cockpit assigns the next
+export const NEXT_VOUCHER = "AP/007/25-26"
+export const LAST_VOUCHER = "AP/006/25-26"
 
 export const LEDGERS = [
   "Carriage Inward",
   "Loading & Unloading Exp.",
-  "Purchase — Raw Material",
+  "Purchase (Raw Material)",
   "Freight & Forwarding",
   "Clearing & Forwarding Charges",
 ]
@@ -74,6 +75,18 @@ export const VENDORS = [
    live; the rest start settled but are one click from re-opening.
    ───────────────────────────────────────────────────────────── */
 export type FactKey = "supplier" | "freight" | "tax" | "loading" | "voucher" | "totals"
+
+/** Confidence-routed per-field lifecycle. Replaces the resolved boolean as the
+ *  richer source of truth (resolved is derived from it, see store.tsx):
+ *   settled       — high confidence, value present, from the document. Green,
+ *                   skippable in the Enter-chain but inspectable.
+ *   doubt         — value present but low confidence or a rule conflict. Amber,
+ *                   routes into the chain, blocks commit.
+ *   needsInput    — enabled + required, no confident/inferable value. Blocks
+ *                   commit, routes into the chain.
+ *   optionalEmpty — enabled but optional and empty. Quiet; never blocks commit,
+ *                   never enters the chain. */
+export type FieldStatus = "settled" | "doubt" | "needsInput" | "optionalEmpty"
 
 export type DocRegion =
   | "supplier"
@@ -130,6 +143,7 @@ export const FIELD_CONFIDENCE: Record<string, { level: ConfLevel; basis: string 
   freight: { level: "high", basis: "HSN 996511 maps to a single ledger for this vendor." },
   loading: { level: "medium", basis: "HSN 996799 maps to two ledgers in your chart of accounts." },
   total: { level: "high", basis: "Line items reconcile to the printed document total." },
+  voucher: { level: "medium", basis: "No voucher number on the document — assigned the next free number in your AP series." },
 }
 
 export interface FactMeta {
@@ -148,9 +162,23 @@ export const FACTS: Record<FactKey, FactMeta> = {
   totals: { label: "Totals", region: "tax", weight: "minor" },
 }
 
+/** which FIELD_CONFIDENCE entry describes each core fact — so a fact card can
+ *  pull its own confidence level + basis without hard-coding the display key */
+export const FACT_CONFIDENCE: Record<FactKey, keyof typeof FIELD_CONFIDENCE> = {
+  supplier: "supplierGstin",
+  freight: "freight",
+  tax: "tax",
+  loading: "loading",
+  voucher: "voucher",
+  totals: "total",
+}
+
 /** ledger-pick editors (freight + loading share one component) */
 export interface LedgerConfig {
   line: string
+  /** short header form of `line`, when the full description reads too long
+   *  for the decision card's title (defaults to `line` if omitted) */
+  short?: string
   amount: number
   hsn: string
   why: string
@@ -159,7 +187,8 @@ export interface LedgerConfig {
 
 export const LEDGER_FACTS: Record<"freight" | "loading", LedgerConfig> = {
   freight: {
-    line: "Freight — inbound raw material",
+    line: "Freight for inbound raw material",
+    short: "Freight",
     amount: 120000,
     hsn: "996511",
     why: "HSN 996511 maps to Carriage Inward; this vendor's freight always books here.",
@@ -174,8 +203,8 @@ export const LEDGER_FACTS: Record<"freight" | "loading", LedgerConfig> = {
     hsn: "996799",
     why: "HSN 996799 maps to two ledgers in your chart of accounts.",
     options: [
-      { name: "Carriage Inward", note: "this vendor ×2 of last 3 bills", rec: true },
-      { name: "Loading & Unloading Exp.", note: "used once · Apr 2026" },
+      { name: "Carriage Inward", note: "Used in 2 of the last 3 bills · last used May 2026", rec: true },
+      { name: "Loading & Unloading Exp.", note: "Used once · last used Apr 2026" },
     ],
   },
 }
@@ -189,6 +218,24 @@ export type BillStatus =
   | "posted"
   | "paid"
   | "overdue"
+
+/** A single billed line — the unit the Bill Details line-items table renders
+ *  and the tax breakup is computed from. `amount` is the line's own pre-tax
+ *  extended total (qty × unitRate − discount); GST is computed at the bill
+ *  level from the gap between the line totals and the bill's grand total. */
+export interface BillLineItem {
+  itemName: string
+  hsn: string
+  ledger: string
+  /** GST rate for this line, as a whole percentage (0 = exempt) */
+  taxRate: number
+  /** CGST+SGST (same state) vs IGST (inter-state) */
+  gstTreatment: "intra" | "inter"
+  qty: number
+  unitRate: number
+  discount: number
+  amount: number
+}
 
 export interface BillRow {
   id: string
@@ -210,6 +257,27 @@ export interface BillRow {
   voucherDate?: string
   /** attached source document filename, if the upload carried one */
   billFile?: string
+  /** push state of the recorded voucher in Tally */
+  tallySync?: "synced" | "pending" | "failed"
+  /** why the last push was rejected, when tallySync === "failed" */
+  syncNote?: string
+  /** date the voucher last pushed cleanly to Tally, when tallySync === "synced" */
+  syncedOn?: string
+  /** vendor's registered address, for the Bill Details info card */
+  billingAddress?: string
+  /** vendor GSTIN, or a note when the supplier is unregistered (reverse charge) */
+  gstin?: string
+  /** short summary of what was billed */
+  description?: string
+  /** GST payable by the recipient under the reverse charge mechanism */
+  reverseCharge?: boolean
+  /** the billed lines — undefined falls back to a single synthesized line
+   *  (see data/lineItems.ts) so every bill can still render a table */
+  lineItems?: BillLineItem[]
+  /** recorded without a keystroke, under a vendor pattern the user graduated
+   *  to auto-posting (data/patterns.ts). Marked in the register because "what
+   *  did nobody look at?" is the question a partner actually asks. */
+  autoPosted?: boolean
 }
 
 export const BILLS: BillRow[] = [
@@ -224,24 +292,152 @@ export const BILLS: BillRow[] = [
     open: 3,
     flag: "Inter-state supply charged as CGST + SGST",
     demo: true,
+    billingAddress: "#14 Hosur Road, Bengaluru 560068, Karnataka",
+    gstin: "29ABCDE1234F1Z5",
+    description: "Freight & logistics services — June 2026",
+    reverseCharge: false,
+    lineItems: [
+      { itemName: "Freight for inbound raw material", hsn: "996511", ledger: "Carriage Inward", taxRate: 18, gstTreatment: "inter", qty: 1, unitRate: 120000, discount: 0, amount: 120000 },
+      { itemName: "Loading & handling charges", hsn: "996799", ledger: "Carriage Inward", taxRate: 18, gstTreatment: "inter", qty: 1, unitRate: 36000, discount: 0, amount: 36000 },
+    ],
   },
-  { id: "b2", vendor: "AWS India Pvt Ltd", number: "IN-INV-9920", date: "31 May 2026", due: "30 Jun 2026", amount: 112400, status: "approved", fresh: true, voucherNo: "AP/004/25-26", voucherDate: "26 May 2026", billFile: "aws-invoice-may.pdf" },
-  { id: "b3", vendor: "Reliable Packaging Co", number: "RPC-2026-118", date: "2 Jun 2026", due: "17 Jun 2026", amount: 47200, status: "scheduled", fresh: true, voucherNo: "AP/005/25-26", voucherDate: "26 May 2026" },
-  { id: "b4", vendor: "Tata Power Company", number: "700456128", date: "1 Jun 2026", due: "15 Jun 2026", amount: 38940, status: "posted", posted: "AP/003/25-26", voucherNo: "AP/003/25-26", voucherDate: "1 Jun 2026", billFile: "tata-power-jun26.pdf" },
-  { id: "b5", vendor: "Kethan & Associates", number: "KA/INV/0042", date: "20 May 2026", due: "19 Jun 2026", amount: 50000, status: "overdue", voucherNo: "AP/006/25-26", voucherDate: "26 May 2026" },
-  { id: "b6", vendor: "Office Mart Supplies", number: "OMS/1187", date: "29 May 2026", due: "28 Jun 2026", amount: 9310, status: "paid", posted: "AP/002/25-26", voucherNo: "AP/002/25-26", voucherDate: "29 May 2026", billFile: "office-mart-1187.pdf" },
-  { id: "b7", vendor: "Crystal Clean Services", number: "CCS-0298", date: "25 May 2026", due: "9 Jun 2026", amount: 15000, status: "paid", posted: "AP/001/25-26", voucherNo: "AP/001/25-26", voucherDate: "25 May 2026" },
+  {
+    id: "b2",
+    vendor: "AWS India Pvt Ltd",
+    number: "IN-INV-9920",
+    date: "31 May 2026",
+    due: "30 Jun 2026",
+    amount: 112400,
+    status: "approved",
+    fresh: true,
+    voucherNo: "AP/004/25-26",
+    voucherDate: "26 May 2026",
+    billFile: "aws-invoice-may.pdf",
+    tallySync: "pending",
+    billingAddress: "RMZ Infinity, Bengaluru 560016, Karnataka",
+    gstin: "29AABCA1332L1Z5",
+    description: "Cloud infrastructure & hosting charges — May 2026",
+    reverseCharge: false,
+    lineItems: [
+      { itemName: "Cloud compute & storage — May 2026", hsn: "998319", ledger: "Cloud & Hosting Charges", taxRate: 18, gstTreatment: "inter", qty: 1, unitRate: 95254, discount: 0, amount: 95254 },
+    ],
+  },
+  {
+    id: "b3",
+    vendor: "Reliable Packaging Co",
+    number: "RPC-2026-118",
+    date: "2 Jun 2026",
+    due: "17 Jun 2026",
+    amount: 47200,
+    status: "scheduled",
+    fresh: true,
+    voucherNo: "AP/005/25-26",
+    voucherDate: "26 May 2026",
+    tallySync: "pending",
+    billingAddress: "Plot 14, MIDC Industrial Area, Pune 411019, Maharashtra",
+    gstin: "27AAECR5566M1Z2",
+    description: "Corrugated packaging boxes — May supply",
+    reverseCharge: false,
+    lineItems: [
+      { itemName: "Corrugated packaging boxes", hsn: "4819", ledger: "Packing Material Expenses", taxRate: 18, gstTreatment: "intra", qty: 200, unitRate: 200, discount: 0, amount: 40000 },
+    ],
+  },
+  {
+    id: "b4",
+    vendor: "Tata Power Company",
+    number: "700456128",
+    date: "1 Jun 2026",
+    due: "15 Jun 2026",
+    amount: 38940,
+    status: "posted",
+    posted: "AP/003/25-26",
+    voucherNo: "AP/003/25-26",
+    voucherDate: "1 Jun 2026",
+    billFile: "tata-power-jun26.pdf",
+    tallySync: "synced",
+    syncedOn: "1 Jun 2026",
+    billingAddress: "Carnac Bunder, Mumbai 400009, Maharashtra",
+    gstin: "27AAACT2727Q1ZE",
+    description: "Electricity charges — June 2026 (GST exempt)",
+    reverseCharge: false,
+    lineItems: [
+      { itemName: "Electricity charges — June 2026", hsn: "27160000", ledger: "Electricity Expenses", taxRate: 0, gstTreatment: "intra", qty: 1, unitRate: 38940, discount: 0, amount: 38940 },
+    ],
+  },
+  {
+    id: "b5",
+    vendor: "Kethan & Associates",
+    number: "KA/INV/0042",
+    date: "20 May 2026",
+    due: "19 Jun 2026",
+    amount: 50000,
+    status: "overdue",
+    voucherNo: "AP/006/25-26",
+    voucherDate: "26 May 2026",
+    tallySync: "failed",
+    syncNote: "Ledger not found in Tally",
+    billingAddress: "Nariman Point, Mumbai 400021, Maharashtra",
+    gstin: "Unregistered — reverse charge applies",
+    description: "Legal & professional consultation fees",
+    reverseCharge: true,
+    lineItems: [
+      { itemName: "Legal & professional consultation fees", hsn: "9982", ledger: "Professional Fees", taxRate: 18, gstTreatment: "intra", qty: 1, unitRate: 42373, discount: 0, amount: 42373 },
+    ],
+  },
+  {
+    id: "b6",
+    vendor: "Office Mart Supplies",
+    number: "OMS/1187",
+    date: "29 May 2026",
+    due: "28 Jun 2026",
+    amount: 9310,
+    status: "paid",
+    posted: "AP/002/25-26",
+    voucherNo: "AP/002/25-26",
+    voucherDate: "29 May 2026",
+    billFile: "office-mart-1187.pdf",
+    tallySync: "synced",
+    syncedOn: "29 May 2026",
+    billingAddress: "Andheri East, Mumbai 400069, Maharashtra",
+    gstin: "27AABCO9988R1Z1",
+    description: "Monthly stationery & office supplies",
+    reverseCharge: false,
+    lineItems: [
+      { itemName: "Stationery & office supplies", hsn: "4820", ledger: "Office Supplies Expenses", taxRate: 18, gstTreatment: "intra", qty: 10, unitRate: 800, discount: 110, amount: 7890 },
+    ],
+  },
+  {
+    id: "b7",
+    vendor: "Crystal Clean Services",
+    number: "CCS-0298",
+    date: "25 May 2026",
+    due: "9 Jun 2026",
+    amount: 15000,
+    status: "paid",
+    posted: "AP/001/25-26",
+    voucherNo: "AP/001/25-26",
+    voucherDate: "25 May 2026",
+    tallySync: "synced",
+    syncedOn: "25 May 2026",
+    billingAddress: "Powai, Mumbai 400076, Maharashtra",
+    gstin: "27AACFC5544N1Z6",
+    description: "Monthly housekeeping & facility cleaning",
+    reverseCharge: false,
+    lineItems: [
+      { itemName: "Housekeeping & facility cleaning — May 2026", hsn: "9985", ledger: "Housekeeping Expenses", taxRate: 18, gstTreatment: "intra", qty: 1, unitRate: 12712, discount: 0, amount: 12712 },
+    ],
+  },
 ]
 
 /** Fields lifted off the document during the Read pass — terse, factual. */
 export const READ_CHIPS: { mk: "ok" | "q"; html: string }[] = [
-  { mk: "ok", html: '<span class="text-faint">Supplier</span> <b class="font-semibold text-ink">Sundar Logistics Pvt Ltd</b> <span class="text-faint">— matched, vendor master</span>' },
+  { mk: "ok", html: '<span class="text-faint">Supplier</span> <b class="font-semibold text-ink">Sundar Logistics Pvt Ltd</b> <span class="text-faint">, matched to vendor master</span>' },
   { mk: "ok", html: '<span class="text-faint">Invoice</span> <b class="font-semibold text-ink font-mono">SLPL/2526/0489</b> <span class="text-faint">· 6 Jun 2026</span>' },
   { mk: "ok", html: '<span class="text-faint">Line items reconcile</span> <b class="font-semibold text-ink font-mono">₹1,56,000</b> <span class="text-faint">taxable</span>' },
   { mk: "ok", html: '<span class="text-faint">Freight ₹1,20,000 →</span> <b class="font-semibold text-ink">Carriage Inward</b> <span class="text-faint">· HSN 996511</span>' },
-  { mk: "q", html: '<span class="text-faint">Tax head —</span> <b class="font-semibold text-ink">CGST+SGST printed, GSTINs 29 ≠ 27</b>' },
-  { mk: "q", html: '<span class="text-faint">Loading ₹36,000 —</span> <b class="font-semibold text-ink">HSN 996799 fits two ledgers</b>' },
-  { mk: "q", html: '<span class="text-faint">Voucher number —</span> <b class="font-semibold text-ink">none on document</b>' },
+  { mk: "q", html: '<span class="text-faint">Tax head:</span> <b class="font-semibold text-ink">CGST+SGST printed, GSTINs 29 ≠ 27</b>' },
+  { mk: "q", html: '<span class="text-faint">Loading ₹36,000:</span> <b class="font-semibold text-ink">HSN 996799 fits two ledgers</b>' },
+  { mk: "q", html: '<span class="text-faint">Voucher number:</span> <b class="font-semibold text-ink">none on document</b>' },
 ]
 
 export const READ_STEPS: [string, string][] = [

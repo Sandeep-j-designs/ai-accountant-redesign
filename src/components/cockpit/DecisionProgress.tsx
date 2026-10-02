@@ -1,11 +1,11 @@
 import { Lock, LockOpen, TriangleAlert } from "lucide-react"
 import {
   useBill,
-  openCount,
   isReady,
-  resolvedExceptions,
+  enterChain,
+  decisionTotal,
+  decisionDone,
   flaggedExceptions,
-  DECISION_TOTAL,
 } from "@/state/store"
 import { cn } from "@/lib/utils"
 import { TickNumber } from "./TickNumber"
@@ -17,15 +17,12 @@ import { TickNumber } from "./TickNumber"
  */
 export function DecisionProgress() {
   const { state } = useBill()
-  const total = DECISION_TOTAL
-  const done = resolvedExceptions(state)
+  const total = decisionTotal(state)
+  const done = decisionDone(state)
   const flagged = flaggedExceptions(state)
-  const open = openCount(state)
+  const open = enterChain(state).length
   const ready = isReady(state)
   const handled = Math.min(done + flagged, total)
-
-  const donePct = (done / total) * 100
-  const flaggedPct = (flagged / total) * 100
 
   let lock: { tone: "ready" | "warn" | "lock"; text: string }
   if (ready) {
@@ -33,22 +30,22 @@ export function DecisionProgress() {
   } else if (state.activeError) {
     lock = {
       tone: "warn",
-      text: state.activeError === "dup" ? "Voucher conflict — resolve below" : "Does not reconcile",
+      text: state.activeError === "dup" ? "Voucher conflict, resolve below" : "Does not reconcile",
     }
   } else if (open > 0) {
-    lock = { tone: "lock", text: `Commit locked — ${open} decision${open === 1 ? "" : "s"} open` }
+    lock = { tone: "lock", text: `Commit locked · ${open} decision${open === 1 ? "" : "s"} open` }
   } else {
-    lock = { tone: "warn", text: `Commit locked — ${flagged} flagged for review` }
+    lock = { tone: "warn", text: `Commit locked · ${flagged} flagged for review` }
   }
 
   return (
     <div className="flex-none border-b border-line bg-surface/95 px-12 py-3 backdrop-blur">
       <div className="mx-auto max-w-[640px]">
         <div className="flex items-center justify-between gap-4">
-          <span className="text-[12.5px] text-body">
+          <span className="min-w-0 truncate text-[12.5px] text-body">
             <TickNumber value={handled} className="fig font-medium text-ink" />
             <span className="text-faint"> of </span>
-            <span className="fig font-medium text-ink">{total}</span> decisions resolved
+            <span className="font-medium tabular-nums text-ink">{total}</span> decisions resolved
             {flagged > 0 && (
               <span className="text-warning"> · {flagged} flagged</span>
             )}
@@ -57,33 +54,46 @@ export function DecisionProgress() {
           <span
             key={lock.tone}
             className={cn(
-              "screen-in inline-flex items-center gap-1.5 text-[11.5px] font-medium",
+              "screen-in inline-flex min-w-0 items-center gap-1.5 text-[11.5px] font-medium",
               lock.tone === "ready" && "text-success",
               lock.tone === "warn" && "text-warning",
               lock.tone === "lock" && "text-faint",
             )}
           >
             {lock.tone === "ready" ? (
-              <LockOpen className="unlock-in size-3.5" strokeWidth={2.2} />
+              <LockOpen className="unlock-in size-3.5 flex-none" strokeWidth={2.2} />
             ) : lock.tone === "warn" ? (
-              <TriangleAlert className="size-3.5" strokeWidth={2} />
+              <TriangleAlert className="size-3.5 flex-none" strokeWidth={2} />
             ) : (
-              <Lock className="size-3" strokeWidth={1.8} />
+              <Lock className="size-3 flex-none" strokeWidth={1.8} />
             )}
-            {lock.text}
+            <span className="truncate">{lock.text}</span>
           </span>
         </div>
 
-        {/* linear indicator — resolved (blue) then flagged (amber) */}
-        <div className="mt-2 flex h-[3px] w-full overflow-hidden rounded-full bg-panel-2">
-          <span
-            className="h-full bg-accent-sig transition-[width] duration-200 ease-out"
-            style={{ width: `${donePct}%` }}
-          />
-          <span
-            className="h-full bg-warning transition-[width] duration-200 ease-out"
-            style={{ width: `${flaggedPct}%` }}
-          />
+        {/* segmented indicator — one segment per decision. Resolved segments
+            fill in the AI accent (the machine's proposals, confirmed); flagged
+            ones hold amber; open ones stay empty track. */}
+        <div
+          className="mt-2 flex w-full gap-1"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-valuenow={handled}
+          aria-label={`${handled} of ${total} decisions resolved`}
+        >
+          {Array.from({ length: total }, (_, i) => {
+            const seg = i < done ? "done" : i < done + flagged ? "flagged" : "open"
+            return (
+              <span
+                key={i}
+                className={cn(
+                  "h-[4px] flex-1 rounded-full transition-colors duration-300",
+                  seg === "done" ? "bg-brand-vivid" : seg === "flagged" ? "bg-warning-dot" : "bg-panel-2",
+                )}
+              />
+            )
+          })}
         </div>
       </div>
     </div>

@@ -53,7 +53,8 @@ export function FlagButton({
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className="inline-flex h-9 items-center gap-2 rounded-md border border-line-2 bg-surface px-3 text-[12.5px] font-medium text-body transition-colors hover:border-line-strong hover:text-ink"
+          aria-label="Flag for review"
+          className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-[12.5px] font-medium text-muted-ink outline-none transition-colors hover:bg-panel hover:text-ink focus-visible:ring-2 focus-visible:ring-brand-vivid/40"
         >
           <Flag className="size-3.5" strokeWidth={2} />
           Flag
@@ -76,7 +77,7 @@ export function FlagButton({
           <div
             role="menu"
             className={cn(
-              "absolute z-50 w-[248px] overflow-hidden rounded-lg border border-line-2 bg-popover shadow-pop",
+              "absolute z-50 w-[248px] overflow-hidden rounded-lg border border-line bg-popover shadow-pop",
               placement === "top" ? "bottom-full mb-2" : "top-full mt-2",
               variant === "dock" ? "right-0" : "left-0",
             )}

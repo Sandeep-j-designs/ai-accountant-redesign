@@ -12,6 +12,7 @@ import {
   CommandItem,
 } from "@/components/ui/command"
 import { LiveLabel, Amt } from "./kit"
+import { Diff } from "./Diff"
 import { Evidence, Confidence, useEvidence, useActiveRegion } from "./evidence"
 import {
   GRAND_TOTAL,
@@ -30,11 +31,11 @@ import {
 
 /* shared chrome ----------------------------------------------------------- */
 
-// inline card action — neutral secondary; the pinned dock holds the one blue
-// primary CTA per the accent-restraint rule.
+// resolving the current decision is this card's single primary — the navy
+// accent fill. No sparkle, no violet. The alternative stays a quiet outline.
 function Accept({ children, onClick }: { children: ReactNode; onClick: () => void }) {
   return (
-    <Button variant="secondary" onClick={onClick} className="px-4">
+    <Button variant="default" onClick={onClick} className="px-4">
       {children}
     </Button>
   )
@@ -72,32 +73,42 @@ export function TaxDecision({
         <LiveLabel>GST treatment</LiveLabel>
         <Confidence field="tax" />
       </div>
-      <h2 className="display mt-2.5 text-[22px] leading-[1.2] text-ink">
-        Correct CGST&nbsp;+&nbsp;SGST to IGST.
+      <h2 className="type-section-title mt-2.5 text-ink">
+        Supplier's GSTIN is out of state
       </h2>
-      <p className="mt-2.5 max-w-[440px] text-[13.5px] leading-relaxed text-body">
+      <p className="mt-2.5 max-w-[62ch] text-[14px] leading-[1.5] text-body">
         Payable is <Amt value={GRAND_TOTAL} className="font-medium text-ink" /> either
-        way — the tax is identical (<Amt value={TAX_AMOUNT} className="font-medium text-ink" />).
-        Only the input-credit head changes.
+        way, and the tax is identical (<Amt value={TAX_AMOUNT} className="font-medium text-ink" />).
+        Only the input credit head changes.
       </p>
 
-      <Separator className="my-5" />
-
-      {/* the reason it knows — two state codes, no pills */}
-      <Eyebrow>Why — place of supply</Eyebrow>
-      <div className="space-y-2.5">
-        <CodeRow role="Supplier" gstin={INVOICE.supplier.gstin} state={STATES.supplier.name} delay={140} />
-        <CodeRow role="Your branch" gstin={INVOICE.recipient.gstin} state={STATES.recipient.name} delay={220} />
-      </div>
-      <div className="mt-3 flex items-center gap-2 text-[13px] text-body">
-        <span className="font-mono text-[15px] font-medium text-ink">29</span>
-        <span className="text-faint">≠</span>
-        <span className="font-mono text-[15px] font-medium text-ink">27</span>
-        <ArrowRight className="mx-0.5 size-3.5 text-faint" strokeWidth={2.2} />
-        <span>
-          inter-state supply — <span className="font-medium text-ink">IGST</span> is the
-          correct head.
-        </span>
+      {/* AI diff — scan the head correction at a glance; the place-of-supply
+          reasoning is progressively disclosed behind the "Why" accordion */}
+      <div className="mt-4">
+        <Diff
+          label="GST head"
+          before="CGST + SGST"
+          after="IGST"
+          why={
+            <div className="space-y-2.5">
+              <CodeRow role="Supplier" gstin={INVOICE.supplier.gstin} state={STATES.supplier.name} delay={140} />
+              <CodeRow role="Your branch" gstin={INVOICE.recipient.gstin} state={STATES.recipient.name} delay={220} />
+              <div className="flex items-center gap-2 pt-0.5">
+                <span className="font-mono text-[14px] font-medium text-ink">29</span>
+                <span className="text-faint">≠</span>
+                <span className="font-mono text-[14px] font-medium text-ink">27</span>
+                <ArrowRight className="mx-0.5 size-3.5 flex-none text-faint" strokeWidth={2.2} />
+                <span>
+                  inter-state supply, so <span className="font-medium text-ink">IGST</span> is the correct head.
+                </span>
+              </div>
+              <p className="border-t border-line/70 pt-2 text-[12px] text-muted-ink">
+                Rule: Sec 7(1), IGST Act 2017. Supply where the supplier and the
+                place of supply are in different states is inter-state, chargeable to IGST.
+              </p>
+            </div>
+          }
+        />
       </div>
 
       <Separator className="my-5" />
@@ -120,14 +131,10 @@ export function TaxDecision({
           <PrintRow label="SGST @ 9%" value={TAX_HALF} struck />
         </div>
         <div className="pl-5">
-          <div className="mb-1.5 text-[11px] font-medium text-accent-sig-ink">Corrected — posts</div>
+          <div className="mb-1.5 text-[12px] font-medium text-ai-ink">Posts as</div>
           <PrintRow label="IGST @ 18%" value={TAX_AMOUNT} accent />
         </div>
       </div>
-      <p className="mt-3 text-[12px] text-muted-ink">
-        Same <Amt value={TAX_AMOUNT} className="text-ink" /> payable — only the
-        credit head differs.
-      </p>
 
       <div className="mt-6 flex flex-wrap items-center gap-2.5">
         <Accept onClick={onAccept}>Correct to IGST</Accept>
@@ -135,7 +142,7 @@ export function TaxDecision({
       </div>
 
       {override && (
-        <p className="mt-3 max-w-[460px] text-[12px] leading-relaxed text-muted-ink">
+        <p className="mt-3 max-w-[62ch] text-[12px] leading-[1.5] text-muted-ink">
           Keeping the split records the tax as the supplier billed it. The mismatch
           with GSTR-2B surfaces at filing — use only if you intend to raise it with
           the supplier.
@@ -187,11 +194,13 @@ function PrintRow({
 }) {
   return (
     <div className="flex items-baseline justify-between py-[3px] text-[12.5px]">
-      <span className={struck ? "text-faint" : accent ? "text-accent-sig-ink" : "text-body"}>{label}</span>
+      <span className={struck ? "text-faint" : accent ? "text-ai-ink" : "text-body"}>{label}</span>
+      {/* the printed→corrected table is one of the two places .00 remains */}
       <Amt
         value={value}
         strike={struck}
-        className={struck ? "" : accent ? "font-medium text-accent-sig-ink" : "font-medium text-ink"}
+        decimals
+        className={struck ? "" : accent ? "font-medium text-ai-ink" : "font-medium text-ink"}
       />
     </div>
   )
@@ -223,15 +232,15 @@ export function LedgerEditor({
   return (
     <div>
       <LiveLabel>{which === "freight" ? "Freight ledger" : "Expense ledger"}</LiveLabel>
-      <h2 className="mt-2.5 text-[17px] font-medium leading-[1.3] tracking-[-0.01em] text-ink">
-        Book {cfg.line.split(" — ")[0]}{" "}
+      <h2 className="type-section-title mt-2.5 text-ink">
+        Book {cfg.short ?? cfg.line}{" "}
         <Evidence region={which === "freight" ? "line1" : "line2"} className="inline-flex items-baseline gap-1">
           <Amt value={cfg.amount} className="text-ink" />
           <Confidence field={which} />
         </Evidence>{" "}
         to a ledger.
       </h2>
-      <p className="mt-2 max-w-[440px] text-[13px] leading-relaxed text-body">{cfg.why}</p>
+      <p className="mt-2 max-w-[62ch] text-[14px] leading-[1.5] text-body">{cfg.why}</p>
 
       <div className="mt-4 space-y-1.5">
         {cfg.options.map((o) => {
@@ -263,7 +272,7 @@ export function LedgerEditor({
                 <span className="block text-[11.5px] text-muted-ink">{o.note}</span>
               </span>
               {o.rec && (
-                <span className="inline-flex items-center rounded-full bg-panel-2 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.06em] text-body">
+                <span className="inline-flex items-center rounded-xs bg-panel-2 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.06em] text-body">
                   Most used
                 </span>
               )}
@@ -318,10 +327,10 @@ export function VendorEditor({
   return (
     <div>
       <LiveLabel>Supplier</LiveLabel>
-      <h2 className="mt-2.5 text-[17px] font-medium leading-[1.3] tracking-[-0.01em] text-ink">
+      <h2 className="type-section-title mt-2.5 text-ink">
         Matched to {matched.name}.
       </h2>
-      <p className="mt-2 max-w-[440px] text-[13px] leading-relaxed text-body">
+      <p className="mt-2 max-w-[62ch] text-[14px] leading-[1.5] text-body">
         Matched on GSTIN{" "}
         <Evidence region="supplier" className="inline-flex items-baseline gap-1">
           <span className="font-mono text-ink">{matched.gstin}</span>
@@ -345,7 +354,9 @@ export function VendorEditor({
                 <CommandItem key={v.name} value={v.name} onSelect={() => { setPick(v.name); onToggleOverride() }}>
                   <span className="flex-1">
                     <span className="block text-ink">{v.name}</span>
-                    <span className="block font-mono text-[11px] text-faint">{v.gstin} · {v.note}</span>
+                    <span className="block text-[11px] text-faint">
+                      <span className="font-mono">{v.gstin}</span> · {v.note}
+                    </span>
                   </span>
                   {pick === v.name && <Check className="size-4 text-ink" strokeWidth={2.4} />}
                 </CommandItem>
@@ -365,7 +376,7 @@ export function TotalsEditor({ onConfirm }: { onConfirm: () => void }) {
   return (
     <div>
       <LiveLabel>Totals</LiveLabel>
-      <h2 className="mt-2.5 text-[17px] font-medium leading-[1.3] tracking-[-0.01em] text-ink">
+      <h2 className="type-section-title mt-2.5 text-ink">
         Line items reconcile to the document total.
       </h2>
 
@@ -389,7 +400,7 @@ export function TotalsEditor({ onConfirm }: { onConfirm: () => void }) {
           <Amt value={TAX_AMOUNT} className="text-ink" />
         </Evidence>
         <div className="flex items-baseline justify-between border-t border-line py-[5px] pt-2">
-          <span className="text-[12px] font-medium uppercase tracking-[0.05em] text-faint">Total</span>
+          <span className="eyebrow">Total</span>
           <span className="inline-flex items-baseline gap-1.5">
             <Amt value={GRAND_TOTAL} className="text-[15px] font-medium text-ink" />
             <Confidence field="total" />
@@ -423,9 +434,12 @@ export function VoucherDecision({
   return (
     <div>
       <LiveLabel>Voucher number</LiveLabel>
-      <h2 className="mt-2.5 text-[17px] font-medium leading-[1.3] tracking-[-0.01em] text-ink">
-        Assign the next AP voucher.
+      <h2 className="type-section-title mt-2.5 text-ink">
+        This bill doesn't carry a voucher number.
       </h2>
+      <p className="mt-2 max-w-[62ch] text-[14px] leading-[1.5] text-body">
+        Here's the next number in your AP series.
+      </p>
 
       <div className="mt-4 flex items-end gap-4">
         {!override ? (
@@ -442,8 +456,6 @@ export function VoucherDecision({
         )}
         <div className="pb-1 text-[12px] text-muted-ink">
           next in series · last <span className="font-mono text-body">{LAST_VOUCHER}</span>
-          <br />
-          none printed on the document
         </div>
       </div>
 

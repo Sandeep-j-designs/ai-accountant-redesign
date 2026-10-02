@@ -39,14 +39,14 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "shadow-lift fixed left-1/2 top-1/2 z-50 grid w-[520px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-3rem)] -translate-x-1/2 -translate-y-1/2 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-line-2 bg-raised duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+          "shadow-lift fixed left-1/2 top-1/2 z-50 grid w-[520px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-3rem)] -translate-x-1/2 -translate-y-1/2 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-xl border border-line bg-raised duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
           className,
         )}
         {...props}
       >
         {children}
         {showClose && (
-          <DialogPrimitive.Close className="absolute right-4 top-4 grid size-[30px] place-items-center rounded-md text-faint transition-colors hover:bg-panel hover:text-body focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none">
+          <DialogPrimitive.Close className="absolute right-4 top-4 grid size-[30px] place-items-center rounded-sm text-faint transition-colors hover:bg-panel hover:text-body focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none">
             <XIcon className="size-[18px]" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>

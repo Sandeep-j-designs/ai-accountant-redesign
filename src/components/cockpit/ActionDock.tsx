@@ -1,55 +1,87 @@
-import { Lock } from "lucide-react"
-import { useBill, openCount, isReady, flaggedKeys, DECISION_TOTAL, type Flagged } from "@/state/store"
+import { Lock, Check, ArrowRight } from "lucide-react"
+import {
+  useBill,
+  isReady,
+  flaggedKeys,
+  enterChain,
+  decisionTotal,
+  decisionDone,
+  isFactKey,
+  isAdditionalKey,
+  type Flagged,
+} from "@/state/store"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { Button, primaryButtonSurface } from "@/components/ui/button"
 import { FlagButton } from "./FlagButton"
 import { FACTS, type FactKey } from "@/data/invoice"
+import { ADDITIONAL_FIELD_MAP } from "@/data/additionalFields"
 
 /**
- * Pinned action bar at the bottom of the right panel. It mirrors the actions
- * for the *focused* decision so they never scroll out of view, and flips to
- * the commit affordance once every decision is resolved.
+ * Pinned action bar at the bottom of the verify board. While any decision is
+ * open it shows the flow's position + the focused decision's Override/Flag
+ * ghosts. Once the board is clean (gate passed) it collapses to a single
+ * affirmative — "Review & post →" — that opens the posting checkpoint (§4).
+ * The accountable Tally write itself lives in the preview, not here.
  */
 export function ActionDock({
-  committing,
-  onAccept,
+  onReview,
   onOverride,
-  onThrow,
   onFlagPick,
   flagOpen,
   setFlagOpen,
 }: {
-  committing: boolean
-  onAccept: () => void
+  /** ready board → open the split-view posting preview */
+  onReview: () => void
   onOverride: () => void
-  onThrow: () => void
   onFlagPick: (to: string) => void
   flagOpen: boolean
   setFlagOpen: (v: boolean) => void
 }) {
   const { state } = useBill()
-  const open = openCount(state)
   const ready = isReady(state)
   const flagged = flaggedKeys(state)
-  const focusKey: FactKey | null = state.focus !== "commit" ? (state.focus as FactKey) : null
+  const remaining = enterChain(state).length
+  const total = decisionTotal(state)
+  const done = decisionDone(state)
+  const coreFocus: FactKey | null = isFactKey(state.focus) ? state.focus : null
+  const focusLabel =
+    state.focus === "commit"
+      ? null
+      : isAdditionalKey(state.focus)
+        ? ADDITIONAL_FIELD_MAP[state.focus].label
+        : FACTS[state.focus].label
+  const position = Math.min(done + 1, total)
 
   return (
-    <div className="flex-none border-t border-line bg-surface/95 px-12 py-3 shadow-lift backdrop-blur">
+    <div className="flex-none border-t border-line bg-surface/95 px-12 py-3 shadow-commit-bar backdrop-blur">
       <div className="mx-auto flex max-w-[640px] items-center justify-between gap-4">
+        {/* left — where the flow stands */}
         {ready ? (
-          <>
-            <span className="min-w-0 text-[12.5px] text-body">
-              <span className="font-medium text-ink">All decisions resolved.</span>{" "}
-              <span className="text-muted-ink">Review the entry, then record.</span>
+          <span className="min-w-0 truncate text-[12.5px] text-muted-ink">
+            <span className="inline-flex items-center gap-1.5">
+              <Check className="size-3.5 flex-none text-success" strokeWidth={2.4} />
+              <span className="font-medium text-ink">All decisions resolved.</span> Review the posting.
             </span>
-            <PostToBooks ready committing={committing} onThrow={onThrow} />
-          </>
-        ) : open > 0 && focusKey ? (
-          <>
-            <span className="min-w-0 truncate text-[12.5px] text-muted-ink">
-              Current — <span className="font-medium text-ink">{FACTS[focusKey].label}</span>
+          </span>
+        ) : remaining > 0 && focusLabel ? (
+          <span className="min-w-0 truncate text-[12.5px] text-muted-ink">
+            Viewing {position} of {total} · <span className="font-medium text-ink">{focusLabel}</span>
+          </span>
+        ) : (
+          <span className="inline-flex min-w-0 items-center gap-2 text-[12.5px] text-warning">
+            <Lock className="size-3.5 flex-none" strokeWidth={1.8} />
+            <span className="truncate">
+              {flagged.length > 0
+                ? `${flagged.length} decision${flagged.length === 1 ? "" : "s"} flagged · ${flagReviewers(state.flagged)}`
+                : "Resolve the flagged item below to record"}
             </span>
-            <div className="flex flex-none items-center gap-2.5">
+          </span>
+        )}
+
+        {/* right — quiet ghosts · the single affirmative (or a locked stand-in) */}
+        <div className="flex flex-none items-center gap-1.5">
+          {coreFocus && (
+            <>
               <FlagButton
                 variant="dock"
                 placement="top"
@@ -57,69 +89,43 @@ export function ActionDock({
                 onOpenChange={setFlagOpen}
                 onPick={onFlagPick}
               />
-              {focusKey !== "totals" && (
-                <Button variant="outline" onClick={onOverride} className="min-w-[92px] px-4 text-body">
+              {coreFocus !== "totals" && (
+                <Button variant="ghost" size="sm" onClick={onOverride} className="text-muted-ink">
                   Override
                 </Button>
               )}
-              <Button onClick={onAccept} className="min-w-[92px] px-4">
-                Accept
-              </Button>
-              <span className="mx-0.5 h-6 w-px flex-none bg-line-2" aria-hidden />
-              <PostToBooks ready={false} committing={false} onThrow={onThrow} />
-            </div>
-          </>
-        ) : (
-          // no open decisions, but not ready — flagged and/or an active error
-          <>
-            <span className="inline-flex min-w-0 items-center gap-2 text-[12.5px] text-warning">
-              <Lock className="size-3.5 flex-none" strokeWidth={1.8} />
-              <span className="truncate">
-                {flagged.length > 0
-                  ? `${flagged.length} decision${flagged.length === 1 ? "" : "s"} flagged — ${flagReviewers(state.flagged)}`
-                  : "Resolve the flagged item below to record"}
-              </span>
+              <span className="mx-1 h-6 w-px flex-none bg-line-2" aria-hidden />
+            </>
+          )}
+
+          {ready ? (
+            <button
+              type="button"
+              onClick={onReview}
+              aria-label="Review the posting before it writes to Tally"
+              className={cn(
+                "inline-flex h-8 flex-none items-center gap-1.5 rounded-md px-4 text-[13px] font-semibold",
+                primaryButtonSurface,
+              )}
+            >
+              Review &amp; post
+              <ArrowRight className="size-3.5 flex-none" strokeWidth={2.2} aria-hidden />
+            </button>
+          ) : (
+            <span
+              aria-label={`Locked · ${remaining || flagged.length} decision${(remaining || flagged.length) === 1 ? "" : "s"} left`}
+              className={cn(
+                "inline-flex h-8 flex-none items-center gap-1.5 rounded-md px-4 text-[13px] font-semibold opacity-40",
+                primaryButtonSurface,
+              )}
+            >
+              <Lock className="size-3.5 flex-none" strokeWidth={2} aria-hidden />
+              Post to Tally <span className="tabular-nums">({total})</span>
             </span>
-            <PostToBooks ready={false} committing={false} onThrow={onThrow} />
-          </>
-        )}
+          )}
+        </div>
       </div>
     </div>
-  )
-}
-
-/**
- * The single, final commit affordance — always the same physical button
- * across every dock state. Locked-gray while any decision is open or
- * flagged; transitions (color only, 200ms) to active indigo the instant
- * every decision resolves. Clicking while ready starts the forcing-function
- * confirm summary in <CommitZone>, then actually records.
- */
-function PostToBooks({
-  ready,
-  committing,
-  onThrow,
-}: {
-  ready: boolean
-  committing: boolean
-  onThrow: () => void
-}) {
-  return (
-    <button
-      type="button"
-      disabled={!ready || committing}
-      onClick={ready ? onThrow : undefined}
-      aria-label={ready ? `Post to books — ${DECISION_TOTAL} decisions` : `Post to books — locked until ${DECISION_TOTAL} decisions resolve`}
-      className={cn(
-        "inline-flex h-9 flex-none items-center gap-1.5 rounded-lg px-4 text-[13px] font-medium transition-colors duration-200 ease-out disabled:cursor-not-allowed",
-        ready
-          ? "bg-accent-sig text-accent-sig-contrast hover:bg-accent-hover"
-          : "bg-panel-2 text-body", // text-body, not text-faint — 4.5:1 against panel-2 in both themes
-      )}
-    >
-      {!ready && <Lock className="size-3.5 flex-none" strokeWidth={1.8} />}
-      {committing ? "Recording…" : <>Post to books <span className="tabular-nums">({DECISION_TOTAL})</span></>}
-    </button>
   )
 }
 

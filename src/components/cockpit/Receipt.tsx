@@ -55,7 +55,7 @@ export function Receipt({ stamp }: { stamp: string }) {
       <div className="mt-5 flex items-center justify-between gap-2">
         <span className="flex items-center gap-2 text-[12px] text-muted-ink">
           <span className="size-1.5 animate-pulse rounded-full bg-muted-ink" />
-          Queued to Tally — will appear as {voucher}
+          Queued to Tally, will appear as {voucher}
         </span>
         <button className="flex flex-none items-center gap-0.5 text-[12px] text-ink hover:underline">
           Track <ArrowUpRight className="size-3.5" strokeWidth={1.8} />

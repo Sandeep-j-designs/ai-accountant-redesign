@@ -51,6 +51,8 @@ export function InvoiceDocument({
       ...(onRegionHover && {
         onMouseEnter: () => onRegionHover(key),
         onMouseLeave: () => onRegionHover(null),
+        onFocus: () => onRegionHover(key),
+        onBlur: () => onRegionHover(null),
       }),
       ...(linkable && {
         role: "button",

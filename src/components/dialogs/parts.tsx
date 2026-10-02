@@ -12,7 +12,7 @@ export function InfoTag({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.06em]",
+        "inline-flex items-center gap-1.5 rounded-xs px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.06em]",
         tone === "danger"
           ? "bg-danger-soft text-danger"
           : "bg-panel-2 text-muted-ink",

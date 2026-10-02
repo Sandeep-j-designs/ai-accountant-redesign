@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/common/Skeleton"
 import { InvoiceDocument } from "@/components/InvoiceDocument"
 import { READ_CHIPS, READ_STEPS } from "@/data/invoice"
+import { COCKPIT_REVIEW_ID } from "@/data/review"
 
 // regions lit up by the OCR pass, in the order the beam reaches them
 const DETECT_SEQUENCE: [string, number][] = [
@@ -67,7 +68,7 @@ export function ReadScreen() {
       setRevealed(READ_CHIPS.length)
       setDetected(DETECT_SEQUENCE.map(([k]) => k))
       setScanning(false)
-      timers.push(setTimeout(() => dispatch({ type: "ENTER_COCKPIT" }), 350))
+      timers.push(setTimeout(() => dispatch({ type: "ENTER_COCKPIT", billId: COCKPIT_REVIEW_ID }), 350))
       return () => timers.forEach(clearTimeout)
     }
 
@@ -98,7 +99,7 @@ export function ReadScreen() {
         ])
       }, 2700),
     )
-    timers.push(setTimeout(() => dispatch({ type: "ENTER_COCKPIT" }), 3300))
+    timers.push(setTimeout(() => dispatch({ type: "ENTER_COCKPIT", billId: COCKPIT_REVIEW_ID }), 3300))
 
     return () => {
       timers.forEach(clearTimeout)
@@ -109,7 +110,7 @@ export function ReadScreen() {
   const [title, sub] = doneText ?? READ_STEPS[step]
 
   return (
-    <div className="grid min-h-full grid-cols-[44%_1fr]">
+    <div className="legacy-read-workspace grid min-h-full grid-cols-[44%_1fr]">
       {/* left: a real uploaded document under an OCR pass */}
       <div className="flex items-start justify-center border-r border-line bg-surface p-8 pt-10">
         <div className="w-full max-w-[460px]">
@@ -120,7 +121,7 @@ export function ReadScreen() {
                 Sundar-Logistics-invoice.pdf
               </span>
             </div>
-            <span className="flex flex-none items-center gap-1.5 font-mono text-[10.5px] text-faint">
+            <span className="flex flex-none items-center gap-1.5 text-[10.5px] text-faint">
               {scanning ? (
                 <>
                   <span className="size-1.5 animate-pulse rounded-full bg-accent-sig" />
@@ -134,7 +135,7 @@ export function ReadScreen() {
             </span>
           </div>
 
-          <div className="rounded-b-lg border-x border-b border-line-2 bg-panel-2 px-6 py-7 shadow-lift">
+          <div className="rounded-b-lg border-x border-b border-line-2 bg-panel-2 px-6 py-7">
             <div className={cn("relative mx-auto rotate-[-0.4deg]", failed && err !== "vendor" && "opacity-60 grayscale")}>
               <InvoiceDocument grain detected={detected} highlight={active} />
 
@@ -255,7 +256,7 @@ const ERR_CONFIG: Record<
     tag: "Vendor not found",
     tone: "warning",
     title: "Supplier isn't in your vendor master.",
-    body: "The bill read cleanly, but Sundar Logistics Pvt Ltd didn't match a vendor on file. Add it or match an existing one — you can finish either way.",
+    body: "The bill read cleanly, but Sundar Logistics Pvt Ltd didn't match a vendor on file. Add it, or match an existing one. You can finish either way.",
   },
 }
 
@@ -266,8 +267,8 @@ function ReadErrorPanel({ kind }: { kind: Exclude<ReadError, null> }) {
   const actions: { label: ReactNode; primary?: boolean; onClick: () => void }[] =
     kind === "vendor"
       ? [
-          { label: "Add & continue", primary: true, onClick: () => dispatch({ type: "ENTER_COCKPIT" }) },
-          { label: "Match manually", onClick: () => dispatch({ type: "ENTER_COCKPIT" }) },
+          { label: "Add & continue", primary: true, onClick: () => dispatch({ type: "ENTER_COCKPIT", billId: COCKPIT_REVIEW_ID }) },
+          { label: "Match manually", onClick: () => dispatch({ type: "ENTER_COCKPIT", billId: COCKPIT_REVIEW_ID }) },
         ]
       : kind === "faint"
         ? [
@@ -283,7 +284,7 @@ function ReadErrorPanel({ kind }: { kind: Exclude<ReadError, null> }) {
     <div className="max-w-[440px]">
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium",
+          "inline-flex items-center gap-1.5 rounded-xs px-2.5 py-1 text-[11px] font-medium",
           c.tone === "danger" ? "bg-danger-bg text-danger" : "bg-warning-bg text-warning",
         )}
       >
